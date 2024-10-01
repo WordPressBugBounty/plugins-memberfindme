@@ -3,7 +3,7 @@
 Plugin Name: MembershipWorks - Membership, Events & Directory
 Plugin URI: https://membershipworks.com
 Description: Membership Works plugin
-Version: 6.10
+Version: 6.12
 Author: MembershipWorks
 Author URI: https://membershipworks.com
 License: GPL2
@@ -211,7 +211,7 @@ function sf_mfm_init() {
 	}
 	if ($x!==false&&empty($set['htm']))
 		$SF_css=true;
-	if ($x!==false&&(isset($_GET['_escaped_fragment_'])||preg_match("/slurp|msnbot|facebook/i",$_SERVER['HTTP_USER_AGENT'])>0)) {
+	if ($x!==false&&(isset($_GET['_escaped_fragment_'])||preg_match("/slurp|msnbot|facebook|meta/i",$_SERVER['HTTP_USER_AGENT'])>0)) {
 		$str=substr($post->post_content,$x+1,$y-$x-1);
 		$mat=array();
 		$opt=array();
@@ -276,6 +276,13 @@ function sf_mfm_init() {
 	}
 	if (!empty($SF_dat)||strpos($post->post_content,'[memberonly')!==false) {
 		if (!defined('DONOTCACHEPAGE')) define('DONOTCACHEPAGE',true);
+		if (!defined('DONOTCACHEOBJECT')) define('DONOTCACHEOBJECT',true);
+		if (!defined('DONOTCDN')) define('DONOTCDN',true);
+		if (function_exists('wp_using_ext_object_cache')) {
+			wp_using_ext_object_cache(false);
+			wp_cache_flush();
+			wp_cache_init();
+		}
 		nocache_headers();
 		setcookie('wordpress_donotcache',time());
 	}
@@ -569,7 +576,7 @@ add_filter('widget_text','sf_shortcode',1);
 function sf_widget_event_do($instance,$set) {
 	if (empty($instance['org']))
 		return '<div>Organization ID not setup. Please update settings.</div>';
-	$instance=wp_parse_args($instance,array('grp'=>'','cnt'=>'3'));
+	$instance=wp_parse_args($instance,array('grp'=>'','cnt'=>'3','lgo'=>'','adn'=>'','szp'=>'','ezp'=>''));
 	$dat=sf_api(empty($set)||empty($set['ssl'])?'https':'http','GET','v1/evt',array('org'=>$instance['org'],'wee'=>1,'grp'=>$instance['grp'],'cnt'=>$instance['cnt'],'sdp'=>time()));
 	if (empty($dat))
 		return '<div>No current events</div>';
@@ -622,14 +629,14 @@ class sf_widget_event extends WP_Widget {
 		$instance['title']=strip_tags($new_instance['title']);
 		$instance['grp']=isset($new_instance['grp'])?$new_instance['grp']:'';
 		$instance['cnt']=$new_instance['cnt']?strval(intval($new_instance['cnt'])):'0';
-		if (empty($new_instance['lgo'])) unset($instance['lgo']); else $instance['lgo']=1;
-		if (empty($new_instance['adn'])) unset($instance['adn']); else $instance['adn']=1;
-		if (empty($new_instance['szp'])) $instance['szp']=1; else unset($instance['szp']);
-		if (empty($new_instance['ezp'])) $instance['ezp']=1; else unset($instance['ezp']);
+		$instance['lgo']=empty($new_instance['lgo'])?'':'1';
+		$instance['adn']=empty($new_instance['adn'])?'':'1';
+		$instance['szp']=empty($new_instance['szp'])?'':'1';
+		$instance['ezp']=empty($new_instance['ezp'])?'':'1';
 		return $instance;
 	}
 	public function form($instance) {
-		$instance=wp_parse_args($instance,array('title'=>'','grp'=>'','cnt'=>'3'));
+		$instance=wp_parse_args($instance,array('title'=>'','grp'=>'','cnt'=>'3','lgo'=>'','adn'=>'','szp'=>'','ezp'=>''));
 		$title=strip_tags($instance['title']);
 		$grp=$instance['grp'];
 		$cnt=intval($instance['cnt']);
@@ -638,8 +645,8 @@ class sf_widget_event extends WP_Widget {
 			.'<p><label for="'.esc_attr($this->get_field_id('cnt')).'">Number of events to show:</label> <input id="'.esc_attr($this->get_field_id('cnt')).'" name="'.esc_attr($this->get_field_name('cnt')).'" type="text" value="'.esc_attr($cnt).'" size="3"/></p>'
 			.'<p><label for="'.esc_attr($this->get_field_id('lgo')).'">Display images:</label> <input id="'.esc_attr($this->get_field_id('lgo')).'" name="'.esc_attr($this->get_field_name('lgo')).'" type="checkbox" value="1"'.(empty($instance['lgo'])?'':' checked').'/></p>'
 			.'<p><label for="'.esc_attr($this->get_field_id('adn')).'">Display location:</label> <input id="'.esc_attr($this->get_field_id('adn')).'" name="'.esc_attr($this->get_field_name('adn')).'" type="checkbox" value="1"'.(empty($instance['adn'])?'':' checked').'/></p>'
-			.'<p><label for="'.esc_attr($this->get_field_id('szp')).'">Display start date/time:</label> <input id="'.esc_attr($this->get_field_id('szp')).'" name="'.esc_attr($this->get_field_name('szp')).'" type="checkbox" value="1"'.(empty($instance['szp'])?' checked':'').'/></p>'
-			.'<p><label for="'.esc_attr($this->get_field_id('ezp')).'">Display end date/time:</label> <input id="'.esc_attr($this->get_field_id('ezp')).'" name="'.esc_attr($this->get_field_name('ezp')).'" type="checkbox" value="1"'.(empty($instance['ezp'])?' checked':'').'/></p>';
+			.'<p><label for="'.esc_attr($this->get_field_id('szp')).'">Hide start date/time:</label> <input id="'.esc_attr($this->get_field_id('szp')).'" name="'.esc_attr($this->get_field_name('szp')).'" type="checkbox" value="1"'.(empty($instance['szp'])?'':' checked').'/></p>'
+			.'<p><label for="'.esc_attr($this->get_field_id('ezp')).'">Hide end date time:</label> <input id="'.esc_attr($this->get_field_id('ezp')).'" name="'.esc_attr($this->get_field_name('ezp')).'" type="checkbox" value="1"'.(empty($instance['ezp'])?'':' checked').'/></p>';
 	}
 }
 
@@ -703,10 +710,7 @@ class sf_widget_folder extends WP_Widget {
 		$instance['typ']=strval(intval($new_instance['typ']));
 		$instance['act']=strval(intval($new_instance['act']));
 		$instance['delay']=strval(intval($new_instance['delay']));
-		if (empty($new_instance['nam']))
-			unset($instance['nam']);
-		else
-			$instance['nam']=1;
+		$instance['nam']=empty($new_instance['nam'])?'':'1';
 		return $instance;
 	}
 	public function form($instance) {

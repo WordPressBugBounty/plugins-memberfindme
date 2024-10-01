@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
-Tested up to: 6.6
-Stable tag: 6.10
+Tested up to: 6.6.2
+Stable tag: 6.12
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -341,3 +341,10 @@ To restrict the content of the entire post/page to members, place the \[memberon
 
 = 6.10 =
 * Tweaks to widget image alt text for WCAG
+
+= 6.11 = 
+* Adds support for WP ext object cache core functions
+* Added meta crawler user agent
+
+= 6.12 =
+* Fixes issues with event widget in block editor
