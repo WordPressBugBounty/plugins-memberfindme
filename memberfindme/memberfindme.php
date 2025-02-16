@@ -3,7 +3,7 @@
 Plugin Name: MembershipWorks - Membership, Events & Directory
 Plugin URI: https://membershipworks.com
 Description: Membership Works plugin
-Version: 6.12
+Version: 6.13
 Author: MembershipWorks
 Author URI: https://membershipworks.com
 License: GPL2
@@ -503,8 +503,6 @@ function sf_shortcode($content) {
 				.'</div>';
 			if (empty($set['htm']))
 				wp_enqueue_script('sf-mfm');
-			if (!defined('DONOTCACHEPAGE'))
-				define('DONOTCACHEPAGE',true);
 			$opn=true;
 		} else if (isset($opt['button'])) { 
 			$out=(isset($opt['type'])?('<'.$opt['type']):'<button')
@@ -546,9 +544,9 @@ function sf_shortcode($content) {
 			else {
 				$out=array();
 				if (!empty($dat)) foreach ($dat as $evt) {
-					$te=explode(',',$evt['ezp']);
 					$ts=explode(',',$evt['szp']);
-					if (!empty($evt['ezp'])&&$te[0]==$ts[0]) $evt['ezp']=trim($te[1]);
+					if (!empty($evt['ezp'])&&($te=explode(',',$evt['ezp']))&&$te[0]==$ts[0])
+						$evt['ezp']=trim(implode(',',array_slice($te,1)));
 					$out[]='<li><a href="'.$evt['url'].'">'.$evt['ttl'].'</a><div class="event-when"><span class="event-start">'.$evt['szp'].'</span>'.(isset($evt['ezp'])&&$evt['ezp']?('<span class="event-sep"> - </span><span class="event-end">'.$evt['ezp'].'</span>'):'').'</div></li>';
 				}
 				$out='<ul class="sf_list">'.implode('',$out).'</ul>';
@@ -587,7 +585,7 @@ function sf_widget_event_do($instance,$set) {
 		$ts=explode(',',$x['szp']);
 		if (empty($instance['szp'])&&!empty($x['ezp'])) {
 			$te=explode(',',$x['ezp']);
-			if ($te[0]==$ts[0]) $x['ezp']=trim($te[1]);
+			if ($te[0]==$ts[0]) $x['ezp']=trim(implode(',',array_slice($te,1)));
 		}
 		$out[]='<li class="event-item">'
 			.'<a class="event-link" href="'.esc_url($x['url']).'">'
