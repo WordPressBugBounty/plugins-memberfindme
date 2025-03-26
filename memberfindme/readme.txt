@@ -4,7 +4,7 @@ Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
 Tested up to: 6.7.2
-Stable tag: 6.13
+Stable tag: 6.14
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -351,3 +351,6 @@ To restrict the content of the entire post/page to members, place the \[memberon
 
 = 6.13 =
 * Fixes bug with event widget
+
+= 6.14 =
+* Block WP Rocket optimizations that corrupts our scripts

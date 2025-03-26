@@ -3,7 +3,7 @@
 Plugin Name: MembershipWorks - Membership, Events & Directory
 Plugin URI: https://membershipworks.com
 Description: Membership Works plugin
-Version: 6.13
+Version: 6.14
 Author: MembershipWorks
 Author URI: https://membershipworks.com
 License: GPL2
@@ -452,6 +452,8 @@ function sf_shortcode($content) {
 					.'</div></div>';
 				if (empty($set['htm']))
 					wp_enqueue_script('sf-mfm');
+				if (!defined('DONOTROCKETOPTIMIZE'))
+					define('DONOTROCKETOPTIMIZE',true);
 				$opn=true;
 			} else {
 				$out=(isset($opt['nomessage'])?'':('<span class="memberonly">'.__($msg).'</span>'));
@@ -503,6 +505,8 @@ function sf_shortcode($content) {
 				.'</div>';
 			if (empty($set['htm']))
 				wp_enqueue_script('sf-mfm');
+			if (!defined('DONOTROCKETOPTIMIZE'))
+				define('DONOTROCKETOPTIMIZE',true);
 			$opn=true;
 		} else if (isset($opt['button'])) { 
 			$out=(isset($opt['type'])?('<'.$opt['type']):'<button')
