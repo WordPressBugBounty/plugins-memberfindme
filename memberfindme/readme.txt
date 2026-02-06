@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
-Tested up to: 6.7.2
-Stable tag: 6.14
+Tested up to: 6.9
+Stable tag: 6.15
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,10 +21,10 @@ All-in-one membership, directory, events and donations for organizations. Secure
 
 = Third Party Integrations =
 
-* Payment Gateways - Stripe, Paypal Website Payments Pro, Paypal Payments Pro/Payflow, Authorize.net, Braintree
+* Payment Gateways - Stripe, Paypal Website Payments Pro, Paypal Payments Pro/Payflow, Paypal Expanded Checkout, Authorize.net
 * Accounting Software - Xero, QuickBooks Desktop, QuickBooks Online
 * Emails/Newsletters - MailChimp
-* Forums - Website Toolbox
+* OAuth 2.0 Single Sign On
 
 = Membership =
 
@@ -62,7 +62,7 @@ All-in-one membership, directory, events and donations for organizations. Secure
 * Search by keyword, location, fields or by labels/folders
 * Interactive map
 * Multiple locations for a business or organization
-* Customizable business cards
+* Customizable cards
 * Customizable member profiles with logos, pictures, map, social media links and more
 * Enable/disable features by membership
 * Create a member deals or offers page
@@ -114,25 +114,15 @@ This plugin is an interface to your MembershipWorks account, much like how MailC
 
 = How do I setup the pages for membership sign-up, directory, deals, event calendar, etc? =
 
-Create pages and put the corresponding shortcode on the page. The shortcode generator can be found in the Help section under MembershipWorks > Help > Basics & Setup > WordPress > WordPress Shortcodes.
+Create pages and put the corresponding shortcode on the page. The shortcode generator can be found in the Help section under MembershipWorks > Help > Website Integration > Integrate with WordPress
 
 = Where can I find the documentation? =
 
 The Help section provides all the documentation. Once you activate the plugin, you can access that under Help from the MembershipWorks menu.
 
-= Can I use Paypal Standard for membership billing? =
-
-No, at this time Paypal Pro is required to interface directly with Paypal for our system. This allows for one page checkout, and for us to track fees and payments, issue refunds, and more.
-
-If you do not have Paypal Pro and do not want to deal with the fees, we recommend using Stripe.
-
-= Can I customize the colors in the membership forms, events, etc? =
-
-Information about customizing CSS can be found in the plugin under MembershipWorks > Help > Customization > CSS & colors
-
 = How do I restrict access to a page or post to members only? =
 
-To restrict the content of the entire post/page to members, place the \[memberonly\] shortcode at the beginning of the post/page. For advanced options please see Help > Basics & Setup > WordPress > Creating Member Only Pages/Posts.
+To restrict the content of the entire post/page to members, place the \[memberonly\] shortcode at the beginning of the post/page. For advanced options please see Help > Website Integration > Integrate with WordPress.
 
 == Screenshots ==
 
@@ -354,3 +344,6 @@ To restrict the content of the entire post/page to members, place the \[memberon
 
 = 6.14 =
 * Block WP Rocket optimizations that corrupts our scripts
+
+= 6.15 =
+* Escapes certain admin settings if unfiltered_html not allowed
