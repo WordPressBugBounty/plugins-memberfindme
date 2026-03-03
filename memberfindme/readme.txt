@@ -3,7 +3,7 @@ Contributors: sourcefound
 Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
-Tested up to: 6.9
+Tested up to: 6.9.1
 Stable tag: 6.15
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
