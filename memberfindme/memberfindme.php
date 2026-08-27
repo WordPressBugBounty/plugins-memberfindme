@@ -3,13 +3,13 @@
 Plugin Name: MembershipWorks - Membership, Events & Directory
 Plugin URI: https://membershipworks.com
 Description: Membership Works plugin
-Version: 6.15
+Version: 6.16
 Author: MembershipWorks
 Author URI: https://membershipworks.com
 License: GPL2
 */
 
-/*  Copyright 2013-2023  SOURCEFOUND INC.  (email : info@sourcefound.com)
+/*  Copyright 2013-2026  MembershipWorks  (email : info@membershipworks.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2, as 
@@ -26,8 +26,11 @@ License: GPL2
 */
 
 $SF_widgetid=0;
-$SF_dat=false;
-$SF_css=false;
+$SF_member_account=false;
+$SF_member_labels=array();
+$SF_member_folders=array();
+$SF_page_data=false;
+$SF_enqueue_css=false;
 
 function sf_api($con,$act,$fn,$param) {
 	if (!empty($_SERVER['HTTP_USER_AGENT'])&&preg_match("/yandex/i",$_SERVER['HTTP_USER_AGENT'])>0)
@@ -93,26 +96,25 @@ function sf_admin_options() {
 	echo '<div class="wrap"><h1>MembershipWorks Plugin Settings</h1>'
 		.'<form action="options.php" method="post">';
 	settings_fields("sf_admin_group");
-	$set=get_option('sf_set');
-	if (empty($set)) $set=[];
+	$settings=get_option('sf_set',array());
 	echo '<table class="form-table">'
-		.'<tr valign="top"><th scope="row">Organization ID</th><td><input type="text" name="sf_set[org]" value="'.esc_attr(isset($set['org'])?$set['org']:'').'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Facebook API key (optional)</th><td><input type="text" name="sf_set[fbk]" value="'.esc_attr(isset($set['fbk'])?$set['fbk']:'').'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Google Maps API key (optional)</th><td><input type="text" name="sf_set[map]" value="'.esc_attr(isset($set['map'])?$set['map']:'').'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Customize text for directory search button</th><td><input type="text" name="sf_set[fnd]" value="'.esc_attr(empty($set['fnd'])?'Search':$set['fnd']).'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Customize text for directory group email button</th><td><input type="text" name="sf_set[rsp]" placeholder="disabled" value="'.esc_attr(isset($set['rsp'])?$set['rsp']:'').'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Disable social share buttons</th><td><input type="checkbox" name="sf_set[scl]"'.(empty($set['scl'])?'':' checked="1"').' /></td></tr>'
-		.'<tr valign="top"><th scope="row">Open directory/listing links in new tab (referral information not passed)</th><td><input type="checkbox" name="sf_set[wgo]"'.(empty($set['wgo'])?'':' checked="1"').' /></td></tr>'
-		.'<tr valign="top"><th scope="row">Load js/css inline</th><td><input type="checkbox" name="sf_set[htm]"'.(empty($set['htm'])?'':' checked="1"').' /></td></tr>'
-		.'<tr valign="top"><th scope="row">URL redirect upon signing out</th><td><input type="text" name="sf_set[out]" value="'.esc_url(empty($set['out'])?'':$set['out']).'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Page top offset (pixels)</th><td><input type="text" name="sf_set[top]" value="'.esc_attr(empty($set['top'])?'':$set['top']).'" /></td></tr>'
-		.'<tr valign="top"><th scope="row">Member only content login required message</th><td><textarea name="sf_set[mol]" style="width:500px">'.esc_textarea(empty($set['mol'])?'The following content is accessible for members only, please sign in.':$set['mol']).'</textarea></td></tr>'
-		.'<tr valign="top"><th scope="row">Member only content membership past due message</th><td><textarea name="sf_set[moe]" style="width:500px">'.esc_textarea(empty($set['moe'])?'The following content is not accessible because your membership has expired.':$set['moe']).'</textarea></td></tr>'
-		.'<tr valign="top"><th scope="row">Member only content account no access message</th><td><textarea name="sf_set[mon]" style="width:500px">'.esc_textarea(empty($set['mon'])?'The following content is not accessible for your account.':$set['mon']).'</textarea></td></tr>'
-		.'<tr valign="top"><th scope="row">Member only content session expired message</th><td><textarea name="sf_set[moi]" style="width:500px">'.esc_textarea(empty($set['moi'])?'Your session has expired, please sign in again.':$set['moi']).'</textarea></td></tr>'
-		.'<tr valign="top"><th scope="row">MembershipWorks data connection</th><td><select name="sf_set[ssl]"><option value=""'.(empty($set['ssl'])?' selected':'').'>Connect via HTTPS</option><option value="1"'.(!empty($set['ssl'])&&$set['ssl']!='2'?' selected':'').'>Connect via HTTP for public data</option><option value="2"'.(!empty($set['ssl'])&&$set['ssl']=='2'?' selected':'').'>Connect via HTTP ** INSECURE ** MAY COMPROMISE MEMBER PASSWORDS AND DATA</option></td></tr>'
+		.'<tr valign="top"><th scope="row">Organization ID</th><td><input type="text" name="sf_set[org]" value="'.esc_attr(isset($settings['org'])?$settings['org']:'').'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Facebook App ID (optional)</th><td><input type="text" name="sf_set[fbk]" value="'.esc_attr(isset($settings['fbk'])?$settings['fbk']:'').'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Google Maps API key (optional)</th><td><input type="text" name="sf_set[map]" value="'.esc_attr(isset($settings['map'])?$settings['map']:'').'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Customize text for directory search button</th><td><input type="text" name="sf_set[fnd]" value="'.esc_attr(empty($settings['fnd'])?'Search':$settings['fnd']).'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Customize text for directory group email button</th><td><input type="text" name="sf_set[rsp]" placeholder="disabled" value="'.esc_attr(isset($settings['rsp'])?$settings['rsp']:'').'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Disable social share buttons</th><td><input type="checkbox" name="sf_set[scl]"'.(empty($settings['scl'])?'':' checked="1"').' /></td></tr>'
+		.'<tr valign="top"><th scope="row">Open directory/listing links in new tab (referral information not passed)</th><td><input type="checkbox" name="sf_set[wgo]"'.(empty($settings['wgo'])?'':' checked="1"').' /></td></tr>'
+		.'<tr valign="top"><th scope="row">Load js/css inline</th><td><input type="checkbox" name="sf_set[htm]"'.(empty($settings['htm'])?'':' checked="1"').' /></td></tr>'
+		.'<tr valign="top"><th scope="row">URL redirect upon signing out</th><td><input type="text" name="sf_set[out]" value="'.esc_url(empty($settings['out'])?'':$settings['out']).'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Page top offset (pixels)</th><td><input type="text" name="sf_set[top]" value="'.esc_attr(empty($settings['top'])?'':$settings['top']).'" /></td></tr>'
+		.'<tr valign="top"><th scope="row">Member only content login required message</th><td><textarea name="sf_set[mol]" style="width:500px">'.esc_textarea(empty($settings['mol'])?'The following content is accessible for members only, please sign in.':$settings['mol']).'</textarea></td></tr>'
+		.'<tr valign="top"><th scope="row">Member only content membership past due message</th><td><textarea name="sf_set[moe]" style="width:500px">'.esc_textarea(empty($settings['moe'])?'The following content is not accessible because your membership has expired.':$settings['moe']).'</textarea></td></tr>'
+		.'<tr valign="top"><th scope="row">Member only content account no access message</th><td><textarea name="sf_set[mon]" style="width:500px">'.esc_textarea(empty($settings['mon'])?'The following content is not accessible for your account.':$settings['mon']).'</textarea></td></tr>'
+		.'<tr valign="top"><th scope="row">Member only content session expired message</th><td><textarea name="sf_set[moi]" style="width:500px">'.esc_textarea(empty($settings['moi'])?'Your session has expired, please sign in again.':$settings['moi']).'</textarea></td></tr>'
+		.'<tr valign="top"><th scope="row">MembershipWorks data connection</th><td><select name="sf_set[ssl]"><option value=""'.(empty($settings['ssl'])?' selected':'').'>Connect via HTTPS</option><option value="1"'.(!empty($settings['ssl'])&&$settings['ssl']!='2'?' selected':'').'>Connect via HTTP for public data</option><option value="2"'.(!empty($settings['ssl'])&&$settings['ssl']=='2'?' selected':'').'>Connect via HTTP ** INSECURE ** MAY COMPROMISE MEMBER PASSWORDS AND DATA</option></td></tr>'
 		.'</table>'
-		//.(empty($set['wpl'])?'':('<input type="hidden" name="sf_set[wpl]" value="'.$set['wpl'].'" />'))
+		//.(empty($settings['wpl'])?'':('<input type="hidden" name="sf_set[wpl]" value="'.$settings['wpl'].'" />'))
 		.'<p class="submit"><input type="submit" name="submit" id="submit" class="button-primary" value="Save Changes"></p>'
 		.'</form></div>';
 }
@@ -143,8 +145,7 @@ function sf_admin_validate($in) {
 
 function sf_admin_page() {
 	global $plugin_page;
-	$set=get_option('sf_set');
-	if (empty($set)) $set=[];
+	$settings=get_option('sf_set',array());
 	switch (substr($plugin_page,9)) {
 		case 'members':		$ini='folder/Members'; $hme='folder/Members'; break;
 		case 'labels':		$ini='labels'; $hme='labels'; break;
@@ -158,7 +159,7 @@ function sf_admin_page() {
 		case 'account': 	$ini='account/manage'; $hme='account'; break;
 		default:			$ini='dashboard'; $hme='dashboard'; break;
 	}
-	echo '<div id="SFctr" class="SF" data-org="10000" data-hme="'.esc_attr($hme).'" data-ini="'.esc_attr($ini).'"'.(empty($set['map'])?'':(' data-map="'.esc_attr($set['map']).'"')).' data-typ="org" data-wpo="options.php" style="position:relative;padding:30px 20px 20px;"></div>'
+	echo '<div id="SFctr" class="SF" data-org="10000" data-hme="'.esc_attr($hme).'" data-ini="'.esc_attr($ini).'"'.(empty($settings['map'])?'':(' data-map="'.esc_attr($settings['map']).'"')).' data-typ="org" data-wpo="options.php" style="position:relative;padding:30px 20px 20px;"></div>'
 		.'<script>function sf_admin(){'
 			.'var t=document.getElementById("toplevel_page_sf_admin_page");'
 			.'if (!t) return;'
@@ -182,7 +183,7 @@ function sf_admin_page() {
 		.'}sf_admin();</script>'
 		.'<script type="text/javascript" src="https://cdn.membershipworks.com/all.js"></script>'
 		.'<script>SF.init();</script>';
-	if (empty($set['org'])) {
+	if (empty($settings['org'])) {
 		echo '<form id="SFwpo" style="display:none" action="options.php" method="post">';
 		settings_fields("sf_admin_group");
 		echo '</form>';
@@ -190,9 +191,9 @@ function sf_admin_page() {
 }
 
 function sf_enqueue_mfm_script() {
-	global $SF_css,$SF_dat;
+	global $SF_enqueue_css,$SF_page_data;
 	wp_register_script('sf-mfm','https://cdn.membershipworks.com/mfm.js',array(),null,true);
-	if (!empty($SF_css)||!empty($SF_dat)) {
+	if (!empty($SF_enqueue_css)||!empty($SF_page_data)) {
 		wp_register_style('sf-css','https://cdn.membershipworks.com/all.css',array(),null,'all');
 		wp_enqueue_style('sf-css');
 	}
@@ -200,31 +201,36 @@ function sf_enqueue_mfm_script() {
 add_action('wp_enqueue_scripts','sf_enqueue_mfm_script');
 
 function sf_title() {
-	global $SF_dat;
+	global $SF_page_data;
 	$arg=func_get_args();
-	if (empty($SF_dat)||empty($SF_dat['ttl']))
+	if (empty($SF_page_data)||empty($SF_page_data['ttl']))
 		return empty($arg)?'':$arg[0];
-	return $SF_dat['ttl'];
+	return $SF_page_data['ttl'];
 }
 
 function sf_mfm_init() {
-	global $post,$SF_dat,$SF_css;
+	global $post,$SF_page_data,$SF_enqueue_css;
+	add_filter('the_content','sf_shortcode',class_exists('ET_Builder_Element')?10:9,1);
+	add_filter('the_content','sf_shortcode',99,1);
+	add_filter('widget_text','sf_shortcode',10,1);
+	add_filter('document_title_parts','sf_document_title_parts',20,1);
 	if (empty($post)||!is_object($post)) return;
 	$arg=func_get_args();
-	$set=get_option('sf_set');
-	if (empty($set)||empty($set['org'])) return;
+	$settings=get_option('sf_set',array());
+	if (empty($settings['org']))
+		return;
 	for ($x=false,$i=0,$l=strlen($post->post_content),$mat=array();$i<$l&&(($x=strpos($post->post_content,'[memberfindme open=',$i))!==false||($x=strpos($post->post_content,'[mw open=',$i))!==false);$i=$x+1) {
 		$y=strpos($post->post_content,']',$x);
 		if ((!$x||substr($post->post_content,$x-1,1)!='[')&&$y!==false) break; // not escaped shortcode and shortcode is closed
 	}
-	if ($x!==false&&empty($set['htm']))
-		$SF_css=true;
+	if ($x!==false&&empty($settings['htm']))
+		$SF_enqueue_css=true;
 	if ($x!==false&&(isset($_GET['_escaped_fragment_'])||preg_match("/slurp|msnbot|facebook|meta/i",$_SERVER['HTTP_USER_AGENT'])>0)) {
 		$str=substr($post->post_content,$x+1,$y-$x-1);
 		$mat=array();
 		$opt=array();
-		if (preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)&&!empty($mat)&&!empty($mat[1])) 
-			foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
+		if (preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)&&!empty($mat)&&!empty($mat[1])) foreach($mat[1] as $key=>$val)
+			$opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
 		if (isset($_GET['_escaped_fragment_'])) {
 			$pne=$_GET['_escaped_fragment_'];
 			remove_action('wp_head','jetpack_og_tags');
@@ -232,13 +238,13 @@ function sf_mfm_init() {
 			add_filter('jetpack_disable_twitter_cards','__return_true',99);
 			if (defined('WPSEO_VERSION')) { // Yoast SEO
 				// add filters just in case
-				add_filter('wpseo_canonical',function($p){global $SF_dat;return isset($SF_dat['rel'])?$SF_dat['rel']:$p;});
-				add_filter('wpseo_title',function($p){global $SF_dat;return isset($SF_dat['ttl'])?$SF_dat['ttl']:$p;});
-				add_filter('wpseo_metadesc',function($p){global $SF_dat;return isset($SF_dat['sum'])?$SF_dat['sum']:$p;});
-				add_filter('wpseo_opengraph_url',function($p){global $SF_dat;return isset($SF_dat['rel'])?$SF_dat['rel']:$p;});
-				add_filter('wpseo_opengraph_title',function($p){global $SF_dat;return isset($SF_dat['ttl'])?$SF_dat['ttl']:$p;});
-				add_filter('wpseo_opengraph_desc',function($p){global $SF_dat;return isset($SF_dat['sum'])?$SF_dat['sum']:$p;});
-				add_filter('wpseo_opengraph_image',function($p){global $SF_dat;return isset($SF_dat['img'])?$SF_dat['img']:$p;});
+				add_filter('wpseo_canonical',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?$SF_page_data['rel']:$p;});
+				add_filter('wpseo_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?$SF_page_data['ttl']:$p;});
+				add_filter('wpseo_metadesc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?$SF_page_data['sum']:$p;});
+				add_filter('wpseo_opengraph_url',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?$SF_page_data['rel']:$p;});
+				add_filter('wpseo_opengraph_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?$SF_page_data['ttl']:$p;});
+				add_filter('wpseo_opengraph_desc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?$SF_page_data['sum']:$p;});
+				add_filter('wpseo_opengraph_image',function($p){global $SF_page_data;return isset($SF_page_data['img'])?$SF_page_data['img']:$p;});
 				// remove wpseo from wp_head and wp_title
 				if (class_exists('Yoast\WP\SEO\Integrations\Front_End_Integration')) {
 					global $wp_filter;
@@ -270,18 +276,18 @@ function sf_mfm_init() {
 			$pne=false;
 		}
 		if (!empty($pne)) {
-			$qry=array('org'=>$set['org'],'hdr'=>'','dtl'=>'','url'=>get_permalink(),'pne'=>$pne);
+			$qry=array('org'=>$settings['org'],'hdr'=>'','dtl'=>'','url'=>get_permalink(),'pne'=>$pne);
 			if (!empty($opt['lbl'])) $qry['lbl']=$opt['lbl']; else if (!empty($opt['labels'])) $qry['lbl']=$opt['labels'];
 			if (!empty($opt['folder'])) $qry['dek']=$opt['folder'];
 			if (isset($opt['evg'])) $qry['evg']=$opt['evg'];
-				$SF_dat=sf_api('http','GET','api',$qry);
-			if (empty($SF_dat)||!empty($SF_dat['error']))
-				$SF_dat=false;
+				$SF_page_data=sf_api('http','GET','api',$qry);
+			if (empty($SF_page_data)||!empty($SF_page_data['error']))
+				$SF_page_data=false;
 			else
-				$SF_dat['set']=$set;
+				$SF_page_data['set']=$settings;
 		}
 	}
-	if (!empty($SF_dat)||strpos($post->post_content,'[memberonly')!==false) {
+	if (!empty($SF_page_data)||strpos($post->post_content,'[memberonly')!==false) {
 		if (!defined('DONOTCACHEPAGE')) define('DONOTCACHEPAGE',true);
 		if (!defined('DONOTCACHEOBJECT')) define('DONOTCACHEOBJECT',true);
 		if (!defined('DONOTCDN')) define('DONOTCDN',true);
@@ -297,52 +303,51 @@ function sf_mfm_init() {
 add_action('wp','sf_mfm_init');
 
 function sf_document_title_parts($title) {
-	global $SF_dat;
-	if (!empty($SF_dat)&&!empty($SF_dat['ttl']))
-		$title['title']=$SF_dat['ttl'];
+	global $SF_page_data;
+	if (!empty($SF_page_data)&&!empty($SF_page_data['ttl']))
+		$title['title']=$SF_page_data['ttl'];
 	return $title;
 }
-add_filter('document_title_parts','sf_document_title_parts',20,2);
 
 function sf_head() {
-	global $SF_dat;
-	if (!empty($SF_dat)) {
+	global $SF_page_data;
+	if (!empty($SF_page_data)) {
 		$out=array();
-		if (isset($SF_dat['sum'])) 
-			$out[]='<meta name="description" content="'.str_replace('"','&quot;',$SF_dat['sum']).'" />';
-		if (isset($SF_dat['ttl'])) {
+		if (isset($SF_page_data['sum'])) 
+			$out[]='<meta name="description" content="'.str_replace('"','&quot;',$SF_page_data['sum']).'" />';
+		if (isset($SF_page_data['ttl'])) {
 			$out[]='<meta property="og:site_name" content="'.str_replace('"','&quot;',get_bloginfo('name')).'" />';
-			$out[]='<meta property="og:title" content="'.str_replace('"','&quot;',$SF_dat['ttl']).'" />';
+			$out[]='<meta property="og:title" content="'.str_replace('"','&quot;',$SF_page_data['ttl']).'" />';
 		}
-		if (isset($SF_dat['img'])) {
-			$out[]='<meta property="og:image" content="'.$SF_dat['img'].'" />';
-			$out[]='<meta property="og:image:secure_url" content="'.str_replace('http://','https://',$SF_dat['img']).'" />';
+		if (isset($SF_page_data['img'])) {
+			$out[]='<meta property="og:image" content="'.$SF_page_data['img'].'" />';
+			$out[]='<meta property="og:image:secure_url" content="'.str_replace('http://','https://',$SF_page_data['img']).'" />';
 		}
-		if (isset($SF_dat['sum'])) {
-			$out[]='<meta property="og:description" content="'.str_replace('"','&quot;',$SF_dat['sum']).'" />';
+		if (isset($SF_page_data['sum'])) {
+			$out[]='<meta property="og:description" content="'.str_replace('"','&quot;',$SF_page_data['sum']).'" />';
 		}
-		if (isset($_GET['_escaped_fragment_'])&&isset($SF_dat['rel'])) {
-			$out[]='<meta property="og:url" content="'.$SF_dat['rel'].'" />';
-			$out[]='<link rel="canonical" href="'.$SF_dat['rel'].'" />';
+		if (isset($_GET['_escaped_fragment_'])&&isset($SF_page_data['rel'])) {
+			$out[]='<meta property="og:url" content="'.$SF_page_data['rel'].'" />';
+			$out[]='<link rel="canonical" href="'.$SF_page_data['rel'].'" />';
 		}
-		if (isset($SF_dat['nxt'])) 
-			$out[]='<link rel="next" href="'.$SF_dat['nxt'].'" />';
-		if (isset($SF_dat['prv'])) 
-			$out[]='<link rel="prev" href="'.$SF_dat['prv'].'" />';
+		if (isset($SF_page_data['nxt'])) 
+			$out[]='<link rel="next" href="'.$SF_page_data['nxt'].'" />';
+		if (isset($SF_page_data['prv'])) 
+			$out[]='<link rel="prev" href="'.$SF_page_data['prv'].'" />';
 		echo implode("\r\n",$out).(count($out)?"\r\n":'');
 	}
 }
 
-function sf_shortcode($content) {
-	global $SF_dat;
-	$opn=false;
-	$set=get_option('sf_set');
-	if (empty($set)) $set=[];
-	$wpl=defined('SF_WPL')?preg_replace('/^http[s]?:\\/\\/[^\\/]*/','',SF_WPL>=3?admin_url('admin-ajax.php'):site_url('wp-login.php','login_post')):(empty($set['wpl'])?'':$set['wpl']);
-	$lbl=array();
-	$dek=array();
-	// process memberonly shortcodes - first pass - eliminate admins, obtain labels to test for
-	if (!defined('SF_WPL')||SF_WPL>=5) for ($i=0;$i<strlen($content)&&($x=strpos($content,'[memberonly',$i))!==false;) {
+function sf_preprocess_memberonly_shortcode($content) {
+	global $SF_member_account,$SF_member_labels,$SF_member_folders;
+	$settings=get_option('sf_set',array());
+	if (empty($settings['org']))
+		return $content;
+	if (current_user_can('edit_post',get_the_ID()))
+		return $content;
+	$check_member_labels=[];
+	$check_member_folders=[];
+	for ($i=0;$i<strlen($content)&&($x=strpos($content,'[memberonly',$i))!==false;) {
 		$y=strpos($content,']',$x);
 		if (($x>0&&substr($content,$x-1,1)=='[')||$y===false) { $i=$x+1; continue; } // escaped shortcode or shortcode not closed
 		if (!defined('DONOTCACHEPAGE'))
@@ -353,58 +358,71 @@ function sf_shortcode($content) {
 		$opt=array();
 		if (preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)&&!empty($mat)&&!empty($mat[1])) foreach($mat[1] as $key=>$val)
 			$opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
-		if (empty($set['org'])) {
-			$out='<div>Organization ID not setup. Please update settings.</div>';
-		} else if (current_user_can('edit_post',get_the_ID())) {
-			$tmp=array();
-			foreach ($opt as $key=>$val) $tmp[]=$key.'="'.$val.'"';
-			$out='[administrator notice: content below memberonly '.implode(' ',$tmp).']'
-				.substr($content,$y+1,$l);
-		} else {
-			if (!empty($opt['label'])||!empty($opt['level'])) {
-				$arr=explode(',',empty($opt['label'])?$opt['level']:$opt['label']);
-				foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=strtolower(trim(urldecode($val)));
-			} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
-				$arr=explode(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
-				foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=strtolower(trim(urldecode($val)));
+		if (!empty($opt['label'])||!empty($opt['labels'])) {
+			$arr=explode(',',empty($opt['label'])?$opt['labels']:$opt['label']);
+			foreach($arr as $val) if (($val=strtolower(trim(urldecode($val))))&&!isset($SF_member_labels[$val])) {
+				$SF_member_labels[$val]=false;
+				$check_member_labels[]=$val;
+			}
+		}
+		if (!empty($opt['level'])||!empty($opt['levels'])) {
+			$arr=explode(',',empty($opt['level'])?$opt['levels']:$opt['level']);
+			foreach($arr as $val) if (($val=strtolower(trim(urldecode($val))))&&!isset($SF_member_labels[$val])) {
+				$SF_member_labels[$val]=false;
+				$check_member_labels[]=$val;
+			}
+		}
+		if (!empty($opt['folder'])||!empty($opt['folders'])) {
+			$arr=explode(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
+			foreach($arr as $val) if (($val=strtolower(trim(urldecode($val))))&&!isset($SF_member_folders[$val])) {
+				$SF_member_folders[$val]=false;
+				$check_member_folders[]=$val;
+			}
+		}
+		if (empty($opt['label'])&&empty($opt['labels'])&&empty($opt['level'])&&empty($opt['levels'])&&empty($opt['folder'])&&empty($opt['folders'])&&!isset($SF_member_folders['members'])) {
+			$SF_member_folders['members']=false;
+			$check_member_folders[]='members';
+		}
+		$i=$z+1;
+	}
+	if (!empty($check_member_labels)||!empty($check_member_folders)) {
+		// check if user has required labels
+		if (!empty($_SERVER)&&!empty($_SERVER['HTTP_COOKIE'])&&preg_match('/^SFSF=[^;]*|\\sSFSF=[^;]*/',$_SERVER['HTTP_COOKIE'],$_sf))
+			$_sf=preg_replace('/\\s|\\+/','',substr($_sf[0],strpos($_sf[0],'=')+1));
+		else if (!empty($_COOKIE['SFSF']))
+			$_sf=strlen($_COOKIE['SFSF'])<2?'':$_COOKIE['SFSF'];
+		else
+			$_sf='';
+		if ($_sf) {
+			$tmp=array('org'=>$settings['org'],'sfsf'=>$_sf);
+			if (!empty($check_member_labels)) $tmp['lbl']=$check_member_labels;
+			if (!empty($check_member_folders)) $tmp['dek']=$check_member_folders;
+			$usr=sf_api(empty($settings['ssl'])||$settings['ssl']!='2'?'https':'http','GET','v1/lbl',$tmp);
+			if (empty($usr)) {
+				$SF_member_account=array('error'=>'Invalid session');
 			} else {
-				$dek[]='members';
-			}
-			$i=$z+1;
-			continue;
-		}
-		$content=substr_replace($content,$out,$x,$z-$x);
-		$i=$x+strlen($out);
-	}
-	// check if user has required labels
-	if (!empty($_SERVER)&&!empty($_SERVER['HTTP_COOKIE'])&&preg_match('/^SFSF=[^;]*|\\sSFSF=[^;]*/',$_SERVER['HTTP_COOKIE'],$_sf))
-		$_sf=preg_replace('/\\s|\\+/','',substr($_sf[0],strpos($_sf[0],'=')+1));
-	else if (!empty($_COOKIE['SFSF']))
-		$_sf=strlen($_COOKIE['SFSF'])<2?'':$_COOKIE['SFSF'];
-	else
-		$_sf='';
-	if (empty($set['org'])||!$_sf||(empty($lbl)&&empty($dek))) {
-		$usr=false;
-	} else {
-		$tmp=array('org'=>$set['org'],'sfsf'=>$_sf);
-		if (!empty($lbl)) $tmp['lbl']=array_values(array_unique($lbl));
-		if (!empty($dek)) $tmp['dek']=array_values(array_unique($dek));
-		$usr=sf_api(empty($set['ssl'])||$set['ssl']!='2'?'https':'http','GET','v1/lbl',$tmp);
-		if (empty($usr))
-			$usr=array('error'=>true);
-		else if (!empty($usr['uid'])&&isset($_GET['uid'])&&$usr['uid']!=$_GET['uid'])
-			$usr=false;
-		else if (!empty($usr['lbl'])) {
-			foreach($usr['lbl'] as $i=>$x) {
-				if ($x['typ']==1)
-					$usr['_dek'][]=strtolower($x['lbl']);
-				else
-					$usr['_lbl'][]=strtolower($x['lbl']);
+				$SF_member_account=array_diff_key($usr,array('lbl'=>1));
+				if (!empty($usr['lbl'])) foreach($usr['lbl'] as $i=>$x) {
+					if ($x['typ']==1)
+						$SF_member_folders[strtolower(trim($x['lbl']))]=true;
+					else
+						$SF_member_labels[strtolower(trim($x['lbl']))]=true;
+				}
 			}
 		}
 	}
-	// process memberonly shortcodes - second pass				
-	if (!empty($lbl)||!empty($dek)) for ($i=0;$i<strlen($content)&&($x=strpos($content,'[memberonly',$i))!==false;) {
+	return $content;
+}
+
+function sf_shortcode($content) {
+	global $SF_member_account,$SF_member_labels,$SF_member_folders,$SF_page_data;
+	$settings=get_option('sf_set',array());
+	$wpl=defined('SF_WPL')?preg_replace('/^http[s]?:\\/\\/[^\\/]*/','',SF_WPL>=3?admin_url('admin-ajax.php'):site_url('wp-login.php','login_post')):(empty($settings['wpl'])?'':$settings['wpl']);
+	$opened=false;
+	// fetch member labels/folders data
+	sf_preprocess_memberonly_shortcode($content);
+	// process memberonly shortcodes			
+	for ($i=0;$i<strlen($content)&&($x=strpos($content,'[memberonly',$i))!==false;) {
 		$y=strpos($content,']',$x);
 		if (($x>0&&substr($content,$x-1,1)=='[')||$y===false) { $i=$x+1; continue; } // escaped shortcode or shortcode not closed
 		if (($z=strpos($content,'[/memberonly]',$y))===false) { $z=strlen($content); $l=$z-$y-1; } else { $l=$z-$y-1; $z+=13; }
@@ -413,27 +431,36 @@ function sf_shortcode($content) {
 		$opt=array();
 		if (preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)&&!empty($mat)&&!empty($mat[1])) foreach($mat[1] as $key=>$val)
 			$opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
-		if (!empty($usr)&&!empty($usr['error'])&&$usr['error']!='No response') {
-			$out=$usr['error'];
+		if (empty($settings['org'])) {
+			$out='<div>Organization ID not setup. Please update settings.</div>';
+		} else if (current_user_can('edit_post',get_the_ID())) {
+			$tmp=[];
+			foreach ($opt as $key=>$val) $tmp[]=$key.'="'.$val.'"';
+			$out='[administrator notice: content below memberonly '.implode(' ',$tmp).']'
+				.substr($content,$y+1,$l);
 		} else {
-			if (empty($usr)) {
-				$msg=isset($opt['message'])?$opt['message']:(empty($set['mol'])?'The following content is accessible for members only, please sign in.':$set['mol']);
-			} else if (!empty($usr['error'])) {
-				$msg=isset($opt['message'])?$opt['message']:(empty($set['moi'])?'Your session has expired, please sign in again.':$set['moi']);
-			} else if (!empty($usr['end'])) {
-				$msg=isset($opt['message'])?$opt['message']:(empty($set['moe'])?'The following content is not accessible because your membership has expired.':$set['moe']);
+			if (empty($SF_member_account)) {
+				$msg=isset($opt['message'])?$opt['message']:(empty($settings['mol'])?'The following content is accessible for members only, please sign in.':$settings['mol']);
+			} else if (!empty($SF_member_account['error'])) {
+				$msg=isset($opt['message'])?$opt['message']:(empty($settings['moi'])?'Your session has expired, please sign in again.':$settings['moi']);
+			} else if (!empty($SF_member_account['end'])) {
+				$msg=isset($opt['message'])?$opt['message']:(empty($settings['moe'])?'The following content is not accessible because your membership has expired.':$settings['moe']);
 			} else {
-				$msg=isset($opt['message'])?$opt['message']:(empty($set['mon'])?'The following content is not accessible for your account.':$set['mon']);
-				if (!empty($opt['label'])||!empty($opt['level'])) {
-					$arr=explode(',',empty($opt['label'])?$opt['level']:$opt['label']);
-					foreach ($arr as $key=>$val) $arr[$key]=strtolower(trim(urldecode($val)));
-					if (!empty($usr['_lbl'])&&count(array_intersect($usr['_lbl'],$arr))) $msg=false;
-				} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
+				$msg=isset($opt['message'])?$opt['message']:(empty($settings['mon'])?'The following content is not accessible for your account.':$settings['mon']);
+				if ($msg!==false&&(!empty($opt['label'])||!empty($opt['labels']))) {
+					$arr=explode(',',empty($opt['label'])?$opt['labels']:$opt['label']);
+					foreach ($arr as $key=>$val) if (!empty($SF_member_labels[strtolower(trim(urldecode($val)))])) $msg=false;
+				}
+				if ($msg!==false&&(!empty($opt['level'])||!empty($opt['levels']))) {
+					$arr=explode(',',empty($opt['level'])?$opt['levels']:$opt['level']);
+					foreach ($arr as $key=>$val) if (!empty($SF_member_labels[strtolower(trim(urldecode($val)))])) $msg=false;
+				}
+				if ($msg!==false&&(!empty($opt['folder'])||!empty($opt['folders']))) {
 					$arr=explode(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
-					foreach ($arr as $key=>$val) $arr[$key]=strtolower(trim(urldecode($val)));
-					if (!empty($usr['_dek'])&&count(array_intersect($usr['_dek'],$arr))) $msg=false;
-				} else {
-					if (!empty($usr['_dek'])&&in_array('members',$usr['_dek'])) $msg=false;
+					foreach ($arr as $key=>$val) if (!empty($SF_member_folders[strtolower(trim(urldecode($val)))])) $msg=false;
+				}
+				if ($msg!==false&&empty($opt['label'])&&empty($opt['labels'])&&empty($opt['level'])&&empty($opt['levels'])&&empty($opt['folder'])&&empty($opt['folders'])&&!empty($SF_member_folders['members'])) {
+					$msg=false;
 				}
 			}
 			if ($msg===false&&isset($opt['false'])) {
@@ -443,25 +470,25 @@ function sf_shortcode($content) {
 			} else if (is_singular()&&!empty($opt['nonmember-redirect'])) {
 				$out=(isset($opt['nomessage'])?'':('<span class="memberonly">'.__($msg).'</span>'))
 					.'<script>setTimeout(\'window.location="'.esc_url($opt['nonmember-redirect']).'"\',2000);</script>';
-				$opn=true;
-			} else if (is_singular()&&!$opn&&!empty($opt['nonmember'])) {
+				$opened=true;
+			} else if (is_singular()&&!$opened&&!empty($opt['nonmember'])) {
 				$out=(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.__($msg).'</div>'))
 					.'[mw open="'.$opt['nonmember'].'"]';
-			} else if (is_singular()&&!$opn&&(empty($usr)||!empty($usr['error']))&&!isset($opt['nologin'])) {
+			} else if (is_singular()&&!$opened&&(empty($SF_member_account)||!empty($SF_member_account['error']))&&!isset($opt['nologin'])) {
 				$out='<div class="memberonlywrapper" style="padding:40px 0 0;margin:40px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd">'
 					.(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.__($msg).'</div>'))
-					.'<div id="SFctr" class="SF" data-sfi="1" data-org="'.esc_attr($set['org']).'" data-ini="myaccount" data-zzz="'.esc_url(get_permalink()).'"'
+					.'<div id="SFctr" class="SF" data-sfi="1" data-org="'.esc_attr($settings['org']).'" data-ini="myaccount" data-zzz="'.esc_url(get_permalink()).'"'
 					.(empty($wpl)?'':' data-wpl="'.esc_url($wpl).'"')
 					.' style="position:relative;height:auto;margin-bottom:40px">'
 					.'<div id="SFpne" style="position:relative"><div class="SFpne">Loading...</div></div>'
 					.'<div style="clear:both"></div>'
-					.(empty($set['htm'])?'':'<script type="text/javascript" src="https://cdn.membershipworks.com/mfm.js" defer="defer"></script>')
+					.(empty($settings['htm'])?'':'<script type="text/javascript" src="https://cdn.membershipworks.com/mfm.js" defer="defer"></script>')
 					.'</div></div>';
-				if (empty($set['htm']))
+				if (empty($settings['htm']))
 					wp_enqueue_script('sf-mfm');
 				if (!defined('DONOTROCKETOPTIMIZE'))
 					define('DONOTROCKETOPTIMIZE',true);
-				$opn=true;
+				$opened=true;
 			} else {
 				$out=(isset($opt['nomessage'])?'':('<span class="memberonly">'.__($msg).'</span>'));
 			}
@@ -479,19 +506,19 @@ function sf_shortcode($content) {
 		if (!preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)||empty($mat)||empty($mat[1])) { $i=$x+1; continue; }
 		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
 		// create output
-		if (empty($set['org'])) {
+		if (empty($settings['org'])) {
 			$out='<div>Organization ID not setup. Please update settings.</div>';
-		} else if (!$opn&&isset($opt['open'])) {
-			$out=(empty($set['htm'])?'':'<div style="display:none"><script>if(typeof(SF)=="object"&&SF.close)SF.close();</script></div>')
-				.'<div id="SFctr" class="SF" data-org="'.esc_attr($set['org']).'" data-ini="'.esc_attr($opt['open']).'"'
-				.(empty($set['map'])?'':(' data-map="'.esc_attr($set['map']).'"'))
-				.(empty($set['fbk'])?'':(' data-fbk="'.esc_attr($set['fbk']).'"'))
-				.(empty($set['fnd'])?'':(' data-fnd="'.esc_attr($set['fnd']).'"'))
-				.(empty($set['rsp'])?'':(' data-rsp="'.esc_attr($set['rsp']).'"'))
-				.(empty($set['scl'])&&empty($opt['noshare'])?'':(' data-scl="0"'))
-				.(empty($set['wgo'])?'':(' data-wgo="1"'))
-				.(empty($set['out'])?'':(' data-out="'.esc_url($set['out']).'"'))
-				.(empty($set['top'])?'':(' data-top="'.esc_attr($set['top']).'"'))
+		} else if (!$opened&&isset($opt['open'])) {
+			$out=(empty($settings['htm'])?'':'<div style="display:none"><script>if(typeof(SF)=="object"&&SF.close)SF.close();</script></div>')
+				.'<div id="SFctr" class="SF" data-org="'.esc_attr($settings['org']).'" data-ini="'.esc_attr($opt['open']).'"'
+				.(empty($settings['map'])?'':(' data-map="'.esc_attr($settings['map']).'"'))
+				.(empty($settings['fbk'])?'':(' data-fbk="'.esc_attr($settings['fbk']).'"'))
+				.(empty($settings['fnd'])?'':(' data-fnd="'.esc_attr($settings['fnd']).'"'))
+				.(empty($settings['rsp'])?'':(' data-rsp="'.esc_attr($settings['rsp']).'"'))
+				.(empty($settings['scl'])&&empty($opt['noshare'])?'':(' data-scl="0"'))
+				.(empty($settings['wgo'])?'':(' data-wgo="1"'))
+				.(empty($settings['out'])?'':(' data-out="'.esc_url($settings['out']).'"'))
+				.(empty($settings['top'])?'':(' data-top="'.esc_attr($settings['top']).'"'))
 				.(empty($wpl)?'':' data-wpl="'.esc_url($wpl).'"')
 				.(empty($opt['lbl'])&&empty($opt['labels'])?'':(' data-lbl="'.esc_attr(empty($opt['lbl'])?$opt['labels']:$opt['lbl']).'"'))
 				.(empty($opt['folder'])?'':(' data-dek="'.esc_attr($opt['folder']).'"'))
@@ -503,16 +530,16 @@ function sf_shortcode($content) {
 				.(isset($opt['ini'])&&$opt['ini']=='0'?'':' data-sfi="1"')
 				.' style="'.(isset($opt['style'])?$opt['style']:'position:relative;height:auto').'">'
 				.'<div id="SFpne" style="position:relative">'
-					.(empty($SF_dat)?(isset($opt['ini'])&&$opt['ini']=='0'?'':'<div class="SFpne">Loading...</div>'):$SF_dat['dtl'])
+					.(empty($SF_page_data)?(isset($opt['ini'])&&$opt['ini']=='0'?'':'<div class="SFpne">Loading...</div>'):$SF_page_data['dtl'])
 				.'</div>'
 				.'<div id="SFfin" style="clear:both"></div>'
-				.(empty($set['htm'])?'':'<script type="text/javascript" src="https://cdn.membershipworks.com/mfm.js"></script>')
+				.(empty($settings['htm'])?'':'<script type="text/javascript" src="https://cdn.membershipworks.com/mfm.js"></script>')
 				.'</div>';
-			if (empty($set['htm']))
+			if (empty($settings['htm']))
 				wp_enqueue_script('sf-mfm');
 			if (!defined('DONOTROCKETOPTIMIZE'))
 				define('DONOTROCKETOPTIMIZE',true);
-			$opn=true;
+			$opened=true;
 		} else if (isset($opt['button'])) { 
 			$out=(isset($opt['type'])?('<'.$opt['type']):'<button')
 				.(isset($opt['type'])&&$opt['type']=='img'&&isset($opt['src'])?(' src="'.esc_url($opt['src']).'"'):'')
@@ -532,11 +559,11 @@ function sf_shortcode($content) {
 			if (!isset($usl))
 				$usl=!empty($wpl)&&is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)?wp_get_current_user():false;
 			$out=(isset($opt['name'])?'<span class="SFnam">'.(empty($usl)?'':$usl->display_name).'</span>':'')
-				.($opn||(isset($opt['name'])&&!empty($usl))?'':'<script>(function(){var i,j,a,x;try{x=localStorage.getItem("SF_nam");}catch(e){x="";}try{for(a=document.querySelectorAll(".SFnam"),i=a.length-1;i>=0;i--)a[i].innerHTML=x?x:"";}catch(e){}try{for(a=document.querySelectorAll(".SF_li"),i=a.length-1;i>=0;i--)a[i].style.display=x?"":"none";}catch(e){}try{for(a=document.querySelectorAll(".SF_lo"),i=a.length-1;i>=0;i--)a[i].style.display=x?"none":"";}catch(e){}})();</script>');
+				.($opened||(isset($opt['name'])&&!empty($usl))?'':'<script>(function(){var i,j,a,x;try{x=localStorage.getItem("SF_nam");}catch(e){x="";}try{for(a=document.querySelectorAll(".SFnam"),i=a.length-1;i>=0;i--)a[i].innerHTML=x?x:"";}catch(e){}try{for(a=document.querySelectorAll(".SF_li"),i=a.length-1;i>=0;i--)a[i].style.display=x?"":"none";}catch(e){}try{for(a=document.querySelectorAll(".SF_lo"),i=a.length-1;i>=0;i--)a[i].style.display=x?"none":"";}catch(e){}})();</script>');
 			if (!defined('DONOTCACHEPAGE'))
 				define('DONOTCACHEPAGE',true);
 		} else if (isset($opt['listlabel'])||isset($opt['listfolder'])) {
-			$dat=sf_api(empty($set['ssl'])?'https':'http','GET','v1/dek',array('org'=>$set['org'],'wem'=>1,'typ'=>isset($opt['listlabel'])?3:1,'lbl'=>isset($opt['listlabel'])?$opt['listlabel']:$opt['listfolder']));
+			$dat=sf_api(empty($settings['ssl'])?'https':'http','GET','v1/dek',array('org'=>$settings['org'],'wem'=>1,'typ'=>isset($opt['listlabel'])?3:1,'lbl'=>isset($opt['listlabel'])?$opt['listlabel']:$opt['listfolder']));
 			if (!empty($dat)&&!empty($dat['error']))
 				$out=$dat['error'];
 			else {
@@ -546,7 +573,7 @@ function sf_shortcode($content) {
 				$out='<ul class="sf_list">'.implode('',$out).'</ul>';
 			}
 		} else if (isset($opt['listevents'])) {
-			$dat=sf_api(empty($set['ssl'])?'https':'http','GET','v1/evt',array('org'=>$set['org'],'wee'=>1,'grp'=>$opt['listevents'],'cnt'=>isset($opt['count'])?$opt['count']:'5','sdp'=>time()));
+			$dat=sf_api(empty($settings['ssl'])?'https':'http','GET','v1/evt',array('org'=>$settings['org'],'wee'=>1,'grp'=>$opt['listevents'],'cnt'=>isset($opt['count'])?$opt['count']:'5','sdp'=>time()));
 			if (!empty($dat)&&!empty($dat['error']))
 				$out=$dat['error'];
 			else {
@@ -560,30 +587,27 @@ function sf_shortcode($content) {
 				$out='<ul class="sf_list">'.implode('',$out).'</ul>';
 			}
 		} else if (isset($opt['eventwidget'])) {
-			$out=sf_widget_event_do(array_merge($opt,array('org'=>$set['org'])),$set);
+			$out=sf_widget_event_do(array_merge($opt,array('org'=>$settings['org'])),$settings);
 		} else if (isset($opt['folderwidget'])) {
-			$out=sf_widget_folder_do(array_merge($opt,array('org'=>$set['org'])),$set);
+			$out=sf_widget_folder_do(array_merge($opt,array('org'=>$settings['org'])),$settings);
 		} else {
 			$out='';
 		}
 		$content=substr_replace($content,$out,$x,$y-$x+1);
 		$i=$x+strlen($out);
 	}
-	if (!$opn&&!empty($SF_dat)&&($x=strpos($content,'<div id="SFpne" style="position:relative">'))!==false&&($y=strpos($content,'<div id="SFfin" style="clear:both">'))!==false) {
+	if (!$opened&&!empty($SF_page_data)&&($x=strpos($content,'<div id="SFpne" style="position:relative">'))!==false&&($y=strpos($content,'<div id="SFfin" style="clear:both">'))!==false) {
 		// replace again in case wp_autop mucks things up
-		$content=substr_replace($content,'<div id="SFpne" style="position:relative">'.$SF_dat['dtl'].'</div>',$x,$y-$x);
+		$content=substr_replace($content,'<div id="SFpne" style="position:relative">'.$SF_page_data['dtl'].'</div>',$x,$y-$x);
 	}
 	return $content;
 }
-add_filter('the_content','sf_shortcode',9);
-add_filter('the_content','sf_shortcode',99);
-add_filter('widget_text','sf_shortcode',1); 
 
-function sf_widget_event_do($instance,$set) {
+function sf_widget_event_do($instance,$settings) {
 	if (empty($instance['org']))
 		return '<div>Organization ID not setup. Please update settings.</div>';
 	$instance=wp_parse_args($instance,array('grp'=>'','cnt'=>'3','lgo'=>'','adn'=>'','szp'=>'','ezp'=>''));
-	$dat=sf_api(empty($set)||empty($set['ssl'])?'https':'http','GET','v1/evt',array('org'=>$instance['org'],'wee'=>1,'grp'=>$instance['grp'],'cnt'=>$instance['cnt'],'sdp'=>time()));
+	$dat=sf_api(empty($settings)||empty($settings['ssl'])?'https':'http','GET','v1/evt',array('org'=>$instance['org'],'wee'=>1,'grp'=>$instance['grp'],'cnt'=>$instance['cnt'],'sdp'=>time()));
 	if (empty($dat))
 		return '<div>No current events</div>';
 	if (!empty($dat)&&!empty($dat['error']))
@@ -617,8 +641,8 @@ class sf_widget_event extends WP_Widget {
 	}
 	public function widget($args,$instance ) {
 		extract($args);
-		$set=get_option('sf_set');
-		if (empty($set)||empty($set['org'])) {
+		$settings=get_option('sf_set',array());
+		if (empty($settings['org'])) {
 			echo '<div>Organization ID not setup. Please update settings.</div>';
 			return;
 		}
@@ -627,7 +651,7 @@ class sf_widget_event extends WP_Widget {
 			echo str_replace('widget_sf_widget_event','widget_sf_widget_event widget_no_title',$before_widget);
 		else
 			echo $before_widget.$before_title.$title.$after_title;
-		echo sf_widget_event_do(array_merge($instance,array('org'=>$set['org'])),$set);
+		echo sf_widget_event_do(array_merge($instance,array('org'=>$settings['org'])),$settings);
 		echo $after_widget;
 	}
 	public function update($new_instance,$old_instance ) {
@@ -656,12 +680,12 @@ class sf_widget_event extends WP_Widget {
 	}
 }
 
-function sf_widget_folder_do($instance,$set) {
+function sf_widget_folder_do($instance,$settings) {
 	global $SF_widgetid;
 	if (empty($instance['org']))
 		return '<div>Organization ID not setup. Please update settings.</div>';
 	$instance=wp_parse_args($instance,array('typ'=>'1','lbl'=>'Members','act'=>'0','delay'=>'10','nam'=>''));
-	$dat=sf_api(empty($set)||empty($set['ssl'])?'https':'http','GET','v1/dek',array('org'=>$instance['org'],'wem'=>1,'typ'=>empty($instance['typ'])?'1':$instance['typ'],'lbl'=>$instance['lbl']));
+	$dat=sf_api(empty($settings)||empty($settings['ssl'])?'https':'http','GET','v1/dek',array('org'=>$instance['org'],'wem'=>1,'typ'=>empty($instance['typ'])?'1':$instance['typ'],'lbl'=>$instance['lbl']));
 	if (!empty($dat)&&!empty($dat['error']))
 		return '<div>'.$dat['error'].'</div>';
 	$out=array();
@@ -696,8 +720,8 @@ class sf_widget_folder extends WP_Widget {
 	}
 	public function widget($args,$instance ) {
 		extract($args);
-		$set=get_option('sf_set');
-		if (empty($set)||empty($set['org'])) {
+		$settings=get_option('sf_set',array());
+		if (empty($settings['org'])) {
 			echo '<div>Organization ID not setup. Please update settings.</div>';
 			return;
 		}
@@ -706,7 +730,7 @@ class sf_widget_folder extends WP_Widget {
 			echo str_replace('widget_sf_widget_folder','widget_sf_widget_folder widget_no_title',$before_widget);
 		else
 			echo $before_widget.$before_title.$title.$after_title;
-		echo sf_widget_folder_do(array_merge($instance,array('org'=>$set['org'],'wid'=>($this->id).'-list')),$set);
+		echo sf_widget_folder_do(array_merge($instance,array('org'=>$settings['org'],'wid'=>($this->id).'-list')),$settings);
 		echo $after_widget;
 	}
 	public function update($new_instance,$old_instance ) {
