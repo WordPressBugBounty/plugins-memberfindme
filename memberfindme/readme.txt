@@ -4,7 +4,7 @@ Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
 Tested up to: 7.1
-Stable tag: 6.16
+Stable tag: 6.16.1
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -350,3 +350,6 @@ To restrict the content of the entire post/page to members, place the \[memberon
 
 = 6.16 =
 * Changed add_filter priority due to incompatibility with Divi 5 when priority < 10
+
+= 6.16.1 =
+* Adds detection for Divi themes in addition to Divi builder plugin
