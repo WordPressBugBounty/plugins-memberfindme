@@ -3,7 +3,7 @@
 Plugin Name: MembershipWorks - Membership, Events & Directory
 Plugin URI: https://membershipworks.com
 Description: Membership Works plugin
-Version: 6.17
+Version: 6.18
 Author: MembershipWorks
 Author URI: https://membershipworks.com
 License: GPL2
@@ -24,6 +24,8 @@ License: GPL2
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
+defined('ABSPATH') || exit;
 
 $SF_widgetid=0;
 $SF_member_account=false;
@@ -52,7 +54,7 @@ function sf_api($con,$act,$fn,$param) {
 	//	return array('error'=>'No response');
 	//else
 	//	return json_decode($rsp,true);
-	$args=array('headers'=>array('from'=>isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR']),'user-agent'=>$_SERVER['HTTP_USER_AGENT']);
+	$args=array('headers'=>array('from'=>isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:($_SERVER['REMOTE_ADDR']??'')),'user-agent'=>$_SERVER['HTTP_USER_AGENT']??'');
 	for($try=0;$try<3;$try++) {
 		$rsp=wp_remote_get($con.'://api.membershipworks.com/'.$fn.'?'.implode('&',$q),$args);
 		if (is_wp_error($rsp)) usleep(100000); else break;
@@ -124,8 +126,8 @@ function sf_admin_validate($in) {
 		wp_die(__('You do not have sufficient permissions to access this page.'));
 	}
 	$raw=current_user_can('unfiltered_html');
-	$in['org']=intval($in['org']);
-	$in['org']=(is_int($in['org'])?strval($in['org']):'');
+	$org=isset($in['org'])?intval($in['org']):0;
+	$in['org']=$org>0?strval($org):'';
 	if (!empty($in['fbk'])) $in['fbk']=trim($in['fbk']); else unset($in['fbk']);
 	if (!empty($in['map'])) $in['map']=trim($in['map']); else unset($in['map']);
 	if (!empty($in['fnd'])) $in['fnd']=trim($in['fnd']); else unset($in['fnd']);
@@ -139,8 +141,8 @@ function sf_admin_validate($in) {
 	if (!empty($in['moe'])) $in['moe']=$raw?trim($in['moe']):wp_kses_post(trim($in['moe'])); else unset($in['moe']);
 	if (!empty($in['mon'])) $in['mon']=$raw?trim($in['mon']):wp_kses_post(trim($in['mon'])); else unset($in['mon']);
 	if (!empty($in['moi'])) $in['moi']=$raw?trim($in['moi']):wp_kses_post(trim($in['moi'])); else unset($in['moi']);
-	if (!empty($in['ssl'])) $in['ssl']=trim($in['ssl']); else unset($in['ssl']);
-	return $in; // preserve other fields for $in including wpl
+	if (!empty($in['ssl'])&&in_array($in['ssl'],['1','2'],true)) $in['ssl']=trim($in['ssl']); else unset($in['ssl']);
+	return $in;
 }
 
 function sf_admin_page() {
@@ -205,7 +207,7 @@ function sf_title() {
 	$arg=func_get_args();
 	if (empty($SF_page_data)||empty($SF_page_data['ttl']))
 		return empty($arg)?'':$arg[0];
-	return $SF_page_data['ttl'];
+	return esc_html($SF_page_data['ttl']);
 }
 
 function sf_mfm_init() {
@@ -216,7 +218,7 @@ function sf_mfm_init() {
 add_action('init','sf_mfm_init');
 
 function sf_mfm_wp() {
-	global $post,$SF_page_data,$SF_enqueue_css;
+	global $wp_query,$post,$SF_page_data,$SF_enqueue_css,$wpseo_front;
 	add_filter('document_title_parts','sf_document_title_parts',20,1);
 	if (empty($post)||!is_object($post)) return;
 	$arg=func_get_args();
@@ -229,26 +231,26 @@ function sf_mfm_wp() {
 	}
 	if ($x!==false&&empty($settings['htm']))
 		$SF_enqueue_css=true;
-	if ($x!==false&&(isset($_GET['_escaped_fragment_'])||preg_match("/slurp|msnbot|facebook|meta/i",$_SERVER['HTTP_USER_AGENT'])>0)) {
+	if ($x!==false&&(isset($_GET['_escaped_fragment_'])||preg_match("/slurp|msnbot|facebook|meta/i",$_SERVER['HTTP_USER_AGENT']??'')>0)) {
 		$str=substr($post->post_content,$x+1,$y-$x-1);
 		$mat=array();
 		$opt=array();
 		if (preg_match_all('/\s([a-z\-]*)(=("|“|”|&[^;]*;)+.*?("|“|”|&[^;]*;))?/',$str,$mat,PREG_PATTERN_ORDER)&&!empty($mat)&&!empty($mat[1])) foreach($mat[1] as $key=>$val)
 			$opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|“|”|&[^;]*;)*|("|“|”|&[^;]*;)*$/','',$mat[2][$key]));
-		if (isset($_GET['_escaped_fragment_'])) {
+		if (isset($_GET['_escaped_fragment_'])&&is_string($_GET['_escaped_fragment_'])) {
 			$pne=$_GET['_escaped_fragment_'];
 			remove_action('wp_head','jetpack_og_tags');
 			add_filter('jetpack_enable_open_graph','__return_false',99);
 			add_filter('jetpack_disable_twitter_cards','__return_true',99);
 			if (defined('WPSEO_VERSION')) { // Yoast SEO
 				// add filters just in case
-				add_filter('wpseo_canonical',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?$SF_page_data['rel']:$p;});
-				add_filter('wpseo_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?$SF_page_data['ttl']:$p;});
-				add_filter('wpseo_metadesc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?$SF_page_data['sum']:$p;});
-				add_filter('wpseo_opengraph_url',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?$SF_page_data['rel']:$p;});
-				add_filter('wpseo_opengraph_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?$SF_page_data['ttl']:$p;});
-				add_filter('wpseo_opengraph_desc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?$SF_page_data['sum']:$p;});
-				add_filter('wpseo_opengraph_image',function($p){global $SF_page_data;return isset($SF_page_data['img'])?$SF_page_data['img']:$p;});
+				add_filter('wpseo_canonical',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?esc_url($SF_page_data['rel']):$p;});
+				add_filter('wpseo_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?esc_html($SF_page_data['ttl']):$p;});
+				add_filter('wpseo_metadesc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?esc_html($SF_page_data['sum']):$p;});
+				add_filter('wpseo_opengraph_url',function($p){global $SF_page_data;return isset($SF_page_data['rel'])?esc_url($SF_page_data['rel']):$p;});
+				add_filter('wpseo_opengraph_title',function($p){global $SF_page_data;return isset($SF_page_data['ttl'])?esc_html($SF_page_data['ttl']):$p;});
+				add_filter('wpseo_opengraph_desc',function($p){global $SF_page_data;return isset($SF_page_data['sum'])?esc_html($SF_page_data['sum']):$p;});
+				add_filter('wpseo_opengraph_image',function($p){global $SF_page_data;return isset($SF_page_data['img'])?esc_url($SF_page_data['img']):$p;});
 				// remove wpseo from wp_head and wp_title
 				if (class_exists('Yoast\WP\SEO\Integrations\Front_End_Integration')) {
 					global $wp_filter;
@@ -284,22 +286,27 @@ function sf_mfm_wp() {
 			if (!empty($opt['lbl'])) $qry['lbl']=$opt['lbl']; else if (!empty($opt['labels'])) $qry['lbl']=$opt['labels'];
 			if (!empty($opt['folder'])) $qry['dek']=$opt['folder'];
 			if (isset($opt['evg'])) $qry['evg']=$opt['evg'];
-				$SF_page_data=sf_api('http','GET','api',$qry);
+				$SF_page_data=sf_api(empty($settings['ssl'])?'https':'http','GET','api',$qry);
 			if (empty($SF_page_data)||!empty($SF_page_data['error']))
 				$SF_page_data=false;
 			else
 				$SF_page_data['set']=$settings;
 		}
 	}
-	if (!empty($SF_page_data)||strpos($post->post_content,'[memberonly')!==false) {
+	$has_memberonly_content=false;
+	if (!empty($wp_query->posts)) foreach($wp_query->posts as $p) if (is_object($p)&&strpos($p->post_content,'[memberonly')!==false) {
+		$has_memberonly_content=true;
+		break;
+	}
+	if (!empty($SF_page_data)||$has_memberonly_content) {
 		if (!defined('DONOTCACHEPAGE')) define('DONOTCACHEPAGE',true);
 		if (!defined('DONOTCACHEOBJECT')) define('DONOTCACHEOBJECT',true);
 		if (!defined('DONOTCDN')) define('DONOTCDN',true);
-		if (function_exists('wp_using_ext_object_cache')) {
-			wp_using_ext_object_cache(false);
-			wp_cache_flush();
-			wp_cache_init();
-		}
+		//if (function_exists('wp_using_ext_object_cache')) {
+		//	wp_using_ext_object_cache(false);
+		//	wp_cache_flush();
+		//	wp_cache_init();
+		//}
 		nocache_headers();
 		setcookie('wordpress_donotcache',time());
 	}
@@ -309,7 +316,7 @@ add_action('wp','sf_mfm_wp');
 function sf_document_title_parts($title) {
 	global $SF_page_data;
 	if (!empty($SF_page_data)&&!empty($SF_page_data['ttl']))
-		$title['title']=$SF_page_data['ttl'];
+		$title['title']=esc_html($SF_page_data['ttl']);
 	return $title;
 }
 
@@ -318,26 +325,26 @@ function sf_head() {
 	if (!empty($SF_page_data)) {
 		$out=array();
 		if (isset($SF_page_data['sum'])) 
-			$out[]='<meta name="description" content="'.str_replace('"','&quot;',$SF_page_data['sum']).'" />';
+			$out[]='<meta name="description" content="'.esc_attr($SF_page_data['sum']).'" />';
 		if (isset($SF_page_data['ttl'])) {
-			$out[]='<meta property="og:site_name" content="'.str_replace('"','&quot;',get_bloginfo('name')).'" />';
-			$out[]='<meta property="og:title" content="'.str_replace('"','&quot;',$SF_page_data['ttl']).'" />';
+			$out[]='<meta property="og:site_name" content="'.esc_attr(get_bloginfo('name')).'" />';
+			$out[]='<meta property="og:title" content="'.esc_attr($SF_page_data['ttl']).'" />';
 		}
 		if (isset($SF_page_data['img'])) {
-			$out[]='<meta property="og:image" content="'.$SF_page_data['img'].'" />';
-			$out[]='<meta property="og:image:secure_url" content="'.str_replace('http://','https://',$SF_page_data['img']).'" />';
+			$out[]='<meta property="og:image" content="'.esc_url($SF_page_data['img']).'" />';
+			$out[]='<meta property="og:image:secure_url" content="'.esc_url(str_replace('http://','https://',$SF_page_data['img'])).'" />';
 		}
 		if (isset($SF_page_data['sum'])) {
-			$out[]='<meta property="og:description" content="'.str_replace('"','&quot;',$SF_page_data['sum']).'" />';
+			$out[]='<meta property="og:description" content="'.esc_attr($SF_page_data['sum']).'" />';
 		}
 		if (isset($_GET['_escaped_fragment_'])&&isset($SF_page_data['rel'])) {
-			$out[]='<meta property="og:url" content="'.$SF_page_data['rel'].'" />';
-			$out[]='<link rel="canonical" href="'.$SF_page_data['rel'].'" />';
+			$out[]='<meta property="og:url" content="'.esc_url($SF_page_data['rel']).'" />';
+			$out[]='<link rel="canonical" href="'.esc_url($SF_page_data['rel']).'" />';
 		}
 		if (isset($SF_page_data['nxt'])) 
-			$out[]='<link rel="next" href="'.$SF_page_data['nxt'].'" />';
+			$out[]='<link rel="next" href="'.esc_url($SF_page_data['nxt']).'" />';
 		if (isset($SF_page_data['prv'])) 
-			$out[]='<link rel="prev" href="'.$SF_page_data['prv'].'" />';
+			$out[]='<link rel="prev" href="'.esc_url($SF_page_data['prv']).'" />';
 		echo implode("\r\n",$out).(count($out)?"\r\n":'');
 	}
 }
@@ -354,8 +361,11 @@ function sf_preprocess_memberonly_shortcode($content) {
 	for ($i=0;$i<strlen($content)&&($x=strpos($content,'[memberonly',$i))!==false;) {
 		$y=strpos($content,']',$x);
 		if (($x>0&&substr($content,$x-1,1)=='[')||$y===false) { $i=$x+1; continue; } // escaped shortcode or shortcode not closed
-		if (!defined('DONOTCACHEPAGE'))
+		if (!defined('DONOTCACHEPAGE')) {
 			define('DONOTCACHEPAGE',true);
+			if (!defined('DONOTCACHEOBJECT')) define('DONOTCACHEOBJECT',true);
+			if (!defined('DONOTCDN')) define('DONOTCDN',true);
+		}
 		if (($z=strpos($content,'[/memberonly]',$y))===false) { $z=strlen($content); $l=$z-$y-1; } else { $l=$z-$y-1; $z+=13; }
 		$str=substr($content,$x+1,$y-$x-1);
 		$mat=array();
@@ -418,6 +428,10 @@ function sf_preprocess_memberonly_shortcode($content) {
 	return $content;
 }
 
+function sf_kses_post($dtl) {
+	return str_replace('class="SFcrdlgo"','class="SFcrdlgo" onload="this.className+=Math.sign(this.naturalWidth-2*this.naturalHeight)==-1?\' SFcrdlgt\':\' SFcrdlgw\'"',wp_kses_post($dtl));
+}
+
 function sf_shortcode($content) {
 	global $SF_member_account,$SF_member_labels,$SF_member_folders,$SF_page_data;
 	$settings=get_option('sf_set',array());
@@ -440,7 +454,7 @@ function sf_shortcode($content) {
 		} else if (current_user_can('edit_post',get_the_ID())) {
 			$tmp=[];
 			foreach ($opt as $key=>$val) $tmp[]=$key.'="'.$val.'"';
-			$out='[administrator notice: content below memberonly '.implode(' ',$tmp).']'
+			$out='[administrator notice: content below memberonly '.esc_html(implode(' ',$tmp)).']'
 				.substr($content,$y+1,$l);
 		} else {
 			if (empty($SF_member_account)) {
@@ -472,15 +486,16 @@ function sf_shortcode($content) {
 			} else if ($msg===false||isset($opt['false'])) {
 				$out=trim(preg_replace('/^<br(\\s\\/)?>|<br(\\s\\/)?>$/','',substr($content,$y+1,$l)));
 			} else if (is_singular()&&!empty($opt['nonmember-redirect'])) {
-				$out=(isset($opt['nomessage'])?'':('<span class="memberonly">'.__($msg).'</span>'))
-					.'<script>setTimeout(\'window.location="'.esc_url($opt['nonmember-redirect']).'"\',2000);</script>';
+				$url=wp_validate_redirect(esc_url_raw($opt['nonmember-redirect']), '');
+				$out=(isset($opt['nomessage'])?'':('<div class="memberonly">'.wp_kses_post($msg).'</div>'))
+					.($url?('<script>setTimeout(function(){window.location.href='.wp_json_encode($url).';},2000);</script>'):'');
 				$opened=true;
 			} else if (is_singular()&&!$opened&&!empty($opt['nonmember'])) {
-				$out=(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.__($msg).'</div>'))
+				$out=(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.wp_kses_post($msg).'</div>'))
 					.'[mw open="'.$opt['nonmember'].'"]';
 			} else if (is_singular()&&!$opened&&(empty($SF_member_account)||!empty($SF_member_account['error']))&&!isset($opt['nologin'])) {
 				$out='<div class="memberonlywrapper" style="padding:40px 0 0;margin:40px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd">'
-					.(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.__($msg).'</div>'))
+					.(isset($opt['nomessage'])?'':('<div class="memberonly" style="margin-bottom:20px">'.wp_kses_post($msg).'</div>'))
 					.'<div id="SFctr" class="SF" data-sfi="1" data-org="'.esc_attr($settings['org']).'" data-ini="myaccount" data-zzz="'.esc_url(get_permalink()).'"'
 					.(empty($wpl)?'':' data-wpl="'.esc_url($wpl).'"')
 					.' style="position:relative;height:auto;margin-bottom:40px">'
@@ -494,7 +509,7 @@ function sf_shortcode($content) {
 					define('DONOTROCKETOPTIMIZE',true);
 				$opened=true;
 			} else {
-				$out=(isset($opt['nomessage'])?'':('<span class="memberonly">'.__($msg).'</span>'));
+				$out=(isset($opt['nomessage'])?'':('<div class="memberonly">'.wp_kses_post($msg).'</div>'));
 			}
 		}
 		$content=substr_replace($content,$out,$x,$z-$x);
@@ -532,9 +547,9 @@ function sf_shortcode($content) {
 				.(isset($opt['redirect'])?(' data-zzz="'.esc_url($opt['redirect']).'"'):'')
 				.(isset($opt['checkout'])?(' data-zgo="'.esc_url($opt['checkout']).'"'):'')
 				.(isset($opt['ini'])&&$opt['ini']=='0'?'':' data-sfi="1"')
-				.' style="'.(isset($opt['style'])?$opt['style']:'position:relative;height:auto').'">'
+				.' style="'.(isset($opt['style'])?esc_attr(safecss_filter_attr($opt['style'])):'position:relative;height:auto').'">'
 				.'<div id="SFpne" style="position:relative">'
-					.(empty($SF_page_data)?(isset($opt['ini'])&&$opt['ini']=='0'?'':'<div class="SFpne">Loading...</div>'):$SF_page_data['dtl'])
+					.(empty($SF_page_data)?(isset($opt['ini'])&&$opt['ini']=='0'?'':'<div class="SFpne">Loading...</div>'):sf_kses_post($SF_page_data['dtl']))
 				.'</div>'
 				.'<div id="SFfin" style="clear:both"></div>'
 				.(empty($settings['htm'])?'':'<script type="text/javascript" src="https://cdn.membershipworks.com/mfm.js"></script>')
@@ -545,55 +560,59 @@ function sf_shortcode($content) {
 				define('DONOTROCKETOPTIMIZE',true);
 			$opened=true;
 		} else if (isset($opt['button'])) { 
+			if (isset($opt['type'])&&!in_array($opt['type'],['a','button','span','div','img'],true))
+				unset($opt['type']);
 			$out=(isset($opt['type'])?('<'.$opt['type']):'<button')
 				.(isset($opt['type'])&&$opt['type']=='img'&&isset($opt['src'])?(' src="'.esc_url($opt['src']).'"'):'')
 				.(isset($opt['class'])?(' class="'.esc_attr($opt['class']).'"'):'')
 				.(isset($opt['style'])?(' style="'.esc_attr($opt['style']).'"'):' style="cursor:pointer;"')
-				.($opt['button']=='join'?(' onclick="if(typeof(SF)!=\'undefined\')SF.open(\'account/join\');">'.(isset($opt['text'])?$opt['text']:'Join')):'')
+				.($opt['button']=='join'?(' onclick="if(typeof(SF)!=\'undefined\')SF.open(\'account/join\');">'.(isset($opt['text'])?esc_html($opt['text']):'Join')):'')
 				.(isset($opt['type'])?($opt['type']=='img'?'':('</'.$opt['type'].'>')):'</button>');
 		} else if (isset($opt['join'])) {
+			if (isset($opt['type'])&&!in_array($opt['type'],['a','button','span','div','img'],true))
+				unset($opt['type']);
 			$out=(isset($opt['type'])?('<'.$opt['type']):'<a')
 				.(isset($opt['type'])&&$opt['type']=='img'&&isset($opt['src'])?(' src="'.esc_url($opt['src']).'"'):'')
 				.(isset($opt['class'])?(' class="'.esc_attr($opt['class']).'"'):'')
 				.(isset($opt['style'])?(' style="'.esc_attr($opt['style']).'"'):' style="cursor:pointer;"')
-				.(isset($opt['type'])&&$opt['type']!='a'?(' onclick="window.location.hash=\'account/join/'.$opt['join'].'\';if(typeof(SF)!=\'undefined\')setTimeout(\'SF.init()\',50);">'):(' onclick="if(typeof(SF)!=\'undefined\')setTimeout(\'SF.init()\',50)" href="#account/join/'.$opt['join'].'">'))
-				.(isset($opt['text'])?$opt['text']:'Join')
+				.(isset($opt['type'])&&$opt['type']!='a'?(' onclick="window.location.hash=\'account/join/'.rawurlencode(rawurldecode($opt['join'])).'\';if(typeof(SF)!=\'undefined\')setTimeout(\'SF.init()\',50);">'):(' onclick="if(typeof(SF)!=\'undefined\')setTimeout(\'SF.init()\',50)" href="#account/join/'.rawurlencode(rawurldecode($opt['join'])).'">'))
+				.(isset($opt['text'])?esc_html($opt['text']):'Join')
 				.(isset($opt['type'])?($opt['type']=='img'?'':('</'.$opt['type'].'>')):'</a>');
 		} else if (isset($opt['name'])||isset($opt['check'])) {
 			if (!isset($usl))
 				$usl=!empty($wpl)&&is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)?wp_get_current_user():false;
-			$out=(isset($opt['name'])?'<span class="SFnam">'.(empty($usl)?'':$usl->display_name).'</span>':'')
-				.($opened||(isset($opt['name'])&&!empty($usl))?'':'<script>(function(){var i,j,a,x;try{x=localStorage.getItem("SF_nam");}catch(e){x="";}try{for(a=document.querySelectorAll(".SFnam"),i=a.length-1;i>=0;i--)a[i].innerHTML=x?x:"";}catch(e){}try{for(a=document.querySelectorAll(".SF_li"),i=a.length-1;i>=0;i--)a[i].style.display=x?"":"none";}catch(e){}try{for(a=document.querySelectorAll(".SF_lo"),i=a.length-1;i>=0;i--)a[i].style.display=x?"none":"";}catch(e){}})();</script>');
+			$out=(isset($opt['name'])?'<span class="SFnam">'.esc_html(empty($usl)?'':$usl->display_name).'</span>':'')
+				.($opened||(isset($opt['name'])&&!empty($usl))?'':'<script>(function(){var i,j,a,x;try{x=localStorage.getItem("SF_nam");}catch(e){x="";}try{for(a=document.querySelectorAll(".SFnam"),i=a.length-1;i>=0;i--)a[i].textContent=x?x:"";}catch(e){}try{for(a=document.querySelectorAll(".SF_li"),i=a.length-1;i>=0;i--)a[i].style.display=x?"":"none";}catch(e){}try{for(a=document.querySelectorAll(".SF_lo"),i=a.length-1;i>=0;i--)a[i].style.display=x?"none":"";}catch(e){}})();</script>');
 			if (!defined('DONOTCACHEPAGE'))
 				define('DONOTCACHEPAGE',true);
 		} else if (isset($opt['listlabel'])||isset($opt['listfolder'])) {
 			$dat=sf_api(empty($settings['ssl'])?'https':'http','GET','v1/dek',array('org'=>$settings['org'],'wem'=>1,'typ'=>isset($opt['listlabel'])?3:1,'lbl'=>isset($opt['listlabel'])?$opt['listlabel']:$opt['listfolder']));
 			if (!empty($dat)&&!empty($dat['error']))
-				$out=$dat['error'];
+				$out=esc_html($dat['error']);
 			else {
 				$out=array();
 				if (!empty($dat)) foreach($dat as $usr)
-					$out[]='<li><a href="'.$usr['url'].'">'.$usr['nam'].'</a></li>';
+					$out[]='<li><a href="'.esc_url($usr['url']).'">'.esc_html($usr['nam']).'</a></li>';
 				$out='<ul class="sf_list">'.implode('',$out).'</ul>';
 			}
 		} else if (isset($opt['listevents'])) {
 			$dat=sf_api(empty($settings['ssl'])?'https':'http','GET','v1/evt',array('org'=>$settings['org'],'wee'=>1,'grp'=>$opt['listevents'],'cnt'=>isset($opt['count'])?$opt['count']:'5','sdp'=>time()));
 			if (!empty($dat)&&!empty($dat['error']))
-				$out=$dat['error'];
+				$out=esc_html($dat['error']);
 			else {
 				$out=array();
 				if (!empty($dat)) foreach ($dat as $evt) {
 					$ts=explode(',',$evt['szp']);
 					if (!empty($evt['ezp'])&&($te=explode(',',$evt['ezp']))&&$te[0]==$ts[0])
 						$evt['ezp']=trim(implode(',',array_slice($te,1)));
-					$out[]='<li><a href="'.$evt['url'].'">'.$evt['ttl'].'</a><div class="event-when"><span class="event-start">'.$evt['szp'].'</span>'.(isset($evt['ezp'])&&$evt['ezp']?('<span class="event-sep"> - </span><span class="event-end">'.$evt['ezp'].'</span>'):'').'</div></li>';
+					$out[]='<li><a href="'.esc_url($evt['url']).'">'.wp_kses_post($evt['ttl']).'</a><div class="event-when"><span class="event-start">'.esc_html($evt['szp']).'</span>'.(isset($evt['ezp'])&&$evt['ezp']?('<span class="event-sep"> - </span><span class="event-end">'.esc_html($evt['ezp']).'</span>'):'').'</div></li>';
 				}
 				$out='<ul class="sf_list">'.implode('',$out).'</ul>';
 			}
 		} else if (isset($opt['eventwidget'])) {
 			$out=sf_widget_event_do(array_merge($opt,array('org'=>$settings['org'])),$settings);
 		} else if (isset($opt['folderwidget'])) {
-			$out=sf_widget_folder_do(array_merge($opt,array('org'=>$settings['org'])),$settings);
+			$out=sf_widget_folder_do(array_merge($opt,array('org'=>$settings['org'],'wid'=>null)),$settings);
 		} else {
 			$out='';
 		}
@@ -602,7 +621,7 @@ function sf_shortcode($content) {
 	}
 	if (!$opened&&!empty($SF_page_data)&&($x=strpos($content,'<div id="SFpne" style="position:relative">'))!==false&&($y=strpos($content,'<div id="SFfin" style="clear:both">'))!==false) {
 		// replace again in case wp_autop mucks things up
-		$content=substr_replace($content,'<div id="SFpne" style="position:relative">'.$SF_page_data['dtl'].'</div>',$x,$y-$x);
+		$content=substr_replace($content,'<div id="SFpne" style="position:relative">'.sf_kses_post($SF_page_data['dtl']).'</div>',$x,$y-$x);
 	}
 	return $content;
 }
@@ -615,7 +634,7 @@ function sf_widget_event_do($instance,$settings) {
 	if (empty($dat))
 		return '<div>No current events</div>';
 	if (!empty($dat)&&!empty($dat['error']))
-		return '<div>'.$dat['error'].'</div>';
+		return '<div>'.esc_html($dat['error']).'</div>';
 	$out=array();
 	foreach ($dat as $x) {
 		$ts=explode(',',$x['szp']);
@@ -625,15 +644,15 @@ function sf_widget_event_do($instance,$settings) {
 		}
 		$out[]='<li class="event-item">'
 			.'<a class="event-link" href="'.esc_url($x['url']).'">'
-				.(empty($x['lgo'])||empty($instance['lgo'])?'':('<img class="event-thumb" src="//d1tif55lvfk8gc.cloudfront.net/'.$x['_id'].'s.jpg?'.$x['lgo'].'" alt="" style="max-width:100%"/>'))
-				.$x['ttl']
+				.(empty($x['lgo'])||empty($instance['lgo'])?'':('<img class="event-thumb" src="'.esc_url('//d1tif55lvfk8gc.cloudfront.net/'.$x['_id'].'s.jpg?'.$x['lgo']).'" alt style="max-width:100%"/>'))
+				.wp_kses_post($x['ttl'])
 			.'</a>'
-			.(empty($instance['szp'])||(empty($instance['exp'])&&!empty($x['ezp']))?('<div class="event-when">'
-				.(empty($instance['szp'])?('<span class="event-start">'.$x['szp'].'</span>'):'')
+			.(empty($instance['szp'])||(empty($instance['ezp'])&&!empty($x['ezp']))?('<div class="event-when">'
+				.(empty($instance['szp'])?('<span class="event-start">'.esc_html($x['szp']).'</span>'):'')
 				.(empty($instance['szp'])&&empty($instance['ezp'])&&!empty($x['ezp'])?'<span class="event-sep"> - </span>':'')
-				.(empty($instance['ezp'])&&!empty($x['ezp'])?('<span class="event-end">'.$x['ezp'].'</span>'):'')
+				.(empty($instance['ezp'])&&!empty($x['ezp'])?('<span class="event-end">'.esc_html($x['ezp']).'</span>'):'')
 			.'</div>'):'')
-			.(empty($instance['adn'])||empty($x['adn'])?'':('<div class="event-where">'.$x['adn'].'</div>'))
+			.(empty($instance['adn'])||empty($x['adn'])?'':('<div class="event-where">'.esc_html($x['adn']).'</div>'))
 			.'</li>';
 	}
 	return '<ul class="sf_widget_event_list" style="display:block;position:relative">'.implode($out).'</ul>';
@@ -691,20 +710,20 @@ function sf_widget_folder_do($instance,$settings) {
 	$instance=wp_parse_args($instance,array('typ'=>'1','lbl'=>'Members','act'=>'0','delay'=>'10','nam'=>''));
 	$dat=sf_api(empty($settings)||empty($settings['ssl'])?'https':'http','GET','v1/dek',array('org'=>$instance['org'],'wem'=>1,'typ'=>empty($instance['typ'])?'1':$instance['typ'],'lbl'=>$instance['lbl']));
 	if (!empty($dat)&&!empty($dat['error']))
-		return '<div>'.$dat['error'].'</div>';
+		return '<div>'.esc_html($dat['error']).'</div>';
 	$out=array();
 	if (!empty($dat)) foreach($dat as $x) {
 		if ($instance['act']=='1')
 			$out[]='<li style="display:none;background-color:white;text-align:center;height:148px;padding:0;margin:0;table-layout:fixed;width:100%;"><a href="'.esc_url($x['url']).'" style="display:table-cell;vertical-align:middle;padding:10px;text-decoration:none;">'
-				.(empty($x['lgo'])?'':('<div class="member-image"><img src="https://cdn.membershipworks.com/u/'.$x['_id'].'_lgl.jpg?'.$x['lgo'].'" alt="'.(!empty($instance['nam'])?'':esc_attr($x['nam'])).'" onerror="this.parentNode.innerHTML=this.alt;" style="display:block;margin:0 auto;max-width:100%;max-height:75px;"></div>'))
-				.(empty($x['lgo'])||!empty($instance['nam'])?('<div class="member-name" style="display:block;width:100%;font-size:'.($x['lgo']?'1.1em':'1.5em').'">'.esc_html(html_entity_decode($x['nam'],ENT_HTML5|ENT_QUOTES)).'</div>'):'')
-				.(empty($x['cnm'])?'':('<small class="member-tagline" style="display:block;padding:10px;">'.esc_html(html_entity_decode($x['cnm'],ENT_HTML5|ENT_QUOTES)).'</small>'))
+				.(empty($x['lgo'])?'':('<div class="member-image"><img src="'.esc_url('https://cdn.membershipworks.com/u/'.$x['_id'].'_lgl.jpg?'.$x['lgo']).'" alt="'.(!empty($instance['nam'])?'':esc_attr($x['nam'])).'" onerror="this.parentNode.textContent=this.alt;" style="display:block;margin:0 auto;max-width:100%;max-height:75px;"></div>'))
+				.(empty($x['lgo'])||!empty($instance['nam'])?('<div class="member-name" style="display:block;width:100%;font-size:'.($x['lgo']?'1.1em':'1.5em').'">'.esc_html($x['nam']).'</div>'):'')
+				.(empty($x['cnm'])?'':('<small class="member-tagline" style="display:block;padding:10px;">'.wp_kses_post($x['cnm']).'</small>'))
 				.'</a></li>';
 		else
 			$out[]='<li><a href="'.esc_url($x['url']).'">'
-				.(empty($x['lgo'])||empty($instance['lgo'])?'':('<div class="member-image"><img src="https://cdn.membershipworks.com/u/'.$x['_id'].'_lgl.jpg?'.$x['lgo'].'" alt="" onerror="this.parentNode.innerHTML=this.alt;" style="display:block;margin:0 auto;max-width:100%;max-height:75px;"></div>'))
-				.'<span class="member-name">'.esc_html(html_entity_decode($x['nam'],ENT_HTML5|ENT_QUOTES)).'</span>'
-				.(empty($x['cnm'])?'':('<small class="member-tagline" style="display:block;">'.esc_html(html_entity_decode($x['cnm'],ENT_HTML5|ENT_QUOTES)).'</small>'))
+				.(empty($x['lgo'])||empty($instance['lgo'])?'':('<div class="member-image"><img src="'.esc_url('https://cdn.membershipworks.com/u/'.$x['_id'].'_lgl.jpg?'.$x['lgo']).'" alt style="display:block;margin:0 auto;max-width:100%;max-height:75px;"></div>'))
+				.'<span class="member-name">'.esc_html($x['nam']).'</span>'
+				.(empty($x['cnm'])?'':('<small class="member-tagline" style="display:block;">'.wp_kses_post($x['cnm']).'</small>'))
 				.'</a></li>';
 	}
 	$id=empty($instance['wid'])?('sf-widget-'.($SF_widgetid++)):$instance['wid'];
@@ -772,5 +791,3 @@ function sf_widgets_init() {
 	register_widget('sf_widget_folder');
 }
 add_action('widgets_init','sf_widgets_init');
-
-?>

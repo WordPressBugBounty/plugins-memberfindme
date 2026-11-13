@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: https://membershipworks.com
 Tags: membership, member access, tickets, calendar, directory
 Requires at least: 3.0.2
-Tested up to: 7.1.3
-Stable tag: 6.17
+Tested up to: 7.1.4
+Stable tag: 6.18
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -355,4 +355,8 @@ To restrict the content of the entire post/page to members, place the \[memberon
 * Adds detection for Divi themes in addition to Divi builder plugin
 
 = 6.17 =
-* Fixes unauthenticated disclosure of memberonly content via WordPress REST API (vulnerability reported through VulnCheck)
+* Fixes unauthenticated disclosure of memberonly content via WordPress REST API (vulnerability reported by buiih through VulnCheck)
+
+= 6.18 =
+* Fixes XSS vulnerability in member slideshow widget
+* Escapes API source data as suplementary defense
